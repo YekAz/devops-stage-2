@@ -1,0 +1,89 @@
+version: '3.8' # Specify the version of Docker Compose
+
+services:
+  # Service for the React frontend
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`your-domain.com`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+    networks:
+      - web
+
+  # Service for the FastAPI backend
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    labels:
+      - "traefik.http.routers.backend.rule=Host(`your-domain.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+    networks:
+      - web
+
+  # Service for PostgreSQL database
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: your_user
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: your_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - web
+
+  # Service for Adminer database management tool
+  adminer:
+    image: adminer
+    container_name: adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - web
+
+  # Service for Nginx Proxy Manager
+  proxy:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: proxy
+    ports:
+      - "8090:81"
+    networks:
+      - web
+
+  # Service for Traefik reverse proxy
+  traefik:
+    image: traefik:v2.5
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=your-email@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "letsencrypt:/letsencrypt"
+    networks:
+      - web
+
+# Define an external network named 'web' for all services to connect
+networks:
+  web:
+    external: true
+
+# Define volumes for PostgreSQL data and ACME certificates
+volumes:
+  postgres_data:
+  letsencrypt:
