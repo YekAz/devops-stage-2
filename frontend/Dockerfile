@@ -1,9 +1,6 @@
 # Use an official Node.js runtime as a parent image
 FROM node:16 as build
 
-# Ensure Git is installed
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-
 # Set the working directory in the container
 WORKDIR /app
 
