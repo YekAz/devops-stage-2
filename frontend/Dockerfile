@@ -1,34 +1,37 @@
-# # Use the official Node.js image as the base image
+# # Use an official Node.js runtime as a parent image
 # FROM node:14
 
-# # Set the working directory
+# # Set the working directory in the container
 # WORKDIR /app
 
-# # Copy the package.json and package-lock.json files
+# # Copy package.json and package-lock.json to the working directory
 # COPY package*.json ./
 
-# # Install the dependencies
-# RUN npm install
+# # Install dependencies
+# # Adding retry mechanism for npm install
+# RUN npm install --retry=5 --no-optional
 
-# # Copy the rest of the application files
+# # Copy the rest of the application to the working directory
 # COPY . .
 
-# # Build the React application
+# # Build the application
 # RUN npm run build
 
-# # Use a lightweight web server to serve the application
+# # Use a smaller nginx image to serve the build
 # FROM nginx:alpine
 # COPY --from=0 /app/build /usr/share/nginx/html
 
 # # Expose port 80
 # EXPOSE 80
 
-# # Start Nginx server
+# # Start nginx server
 # CMD ["nginx", "-g", "daemon off;"]
 
-
 # Use an official Node.js runtime as a parent image
-FROM node:14
+FROM node:16 as build
+
+# Ensure Git is installed
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /app
@@ -36,8 +39,7 @@ WORKDIR /app
 # Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
-# Install dependencies
-# Adding retry mechanism for npm install
+# Install dependencies with a retry mechanism
 RUN npm install --retry=5 --no-optional
 
 # Copy the rest of the application to the working directory
@@ -48,10 +50,14 @@ RUN npm run build
 
 # Use a smaller nginx image to serve the build
 FROM nginx:alpine
-COPY --from=0 /app/build /usr/share/nginx/html
+
+# Copy the build output from the previous stage
+COPY --from=build /app/build /usr/share/nginx/html
 
 # Expose port 80
 EXPOSE 80
 
 # Start nginx server
 CMD ["nginx", "-g", "daemon off;"]
+
+
